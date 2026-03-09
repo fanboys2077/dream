@@ -6,8 +6,7 @@ html, body {
 }
 
 body {
-    background-image: url('/images/main-bg.jpg'), /* 你的自訂圖片 */
-    linear-gradient(120deg, #f8d9e8 0%, #f3d8ea 32%, #eddcf3 62%, #e6e7fb 100%);
+    background-image: url('/images/main-bg.jpg'), linear-gradient(120deg, #f8d9e8 0%, #f3d8ea 32%, #eddcf3 62%, #e6e7fb 100%);
     background-size: cover, cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -77,6 +76,7 @@ body {
     box-shadow: 0 6px 18px rgba(123, 75, 99, 0.10);
     transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
+
     .login-btn:hover {
         transform: translateY(-1px);
         box-shadow: 0 10px 22px rgba(123, 75, 99, 0.16);
@@ -198,6 +198,15 @@ body {
         object-fit: cover;
         display: block;
     }
+
+    .photo-card.selected-for-delete {
+        outline: 4px solid #ff3b57 !important;
+        box-shadow: 0 0 0 4px rgba(255, 59, 87, 0.18), 0 16px 36px rgba(99, 54, 82, 0.18);
+    }
+
+        .photo-card.selected-for-delete:hover {
+            outline: 4px solid #ff3b57 !important;
+        }
 
 .photo-row::before,
 .photo-row::after {
@@ -461,6 +470,132 @@ body {
     }
 }
 
+/* iPhone風格鎖屏 */
+.lock-screen {
+    position: fixed;
+    inset: 0;
+    background-image: url('/images/lock-bg.jpg');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #ffffff;
+    z-index: 99999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.6s ease, opacity 0.6s ease;
+}
+
+    .lock-screen.hide {
+        transform: translateY(-100%);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+.lock-content {
+    text-align: center;
+}
+
+.lock-title {
+    font-size: 64px;
+    font-weight: 800;
+    color: #7b4b63;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.lock-hint {
+    font-size: 28px;
+    font-weight: 700;
+    color: #6a5563;
+    margin-top: 40px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    animation: lockHintMove 1.6s infinite;
+}
+
+@keyframes lockHintMove {
+    0% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: translateY(-10px);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+}
+
+.logout-form {
+    margin: 0;
+}
+
+.upload-panel {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+    width: auto;
+    margin: 0;
+    pointer-events: auto;
+}
+
+.upload-btn {
+    border: none;
+    background: linear-gradient(135deg, #ffffff 0%, #f8edf4 100%);
+    color: #6b5260;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(123, 75, 99, 0.14);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+    .upload-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 30px rgba(123, 75, 99, 0.18);
+        background: linear-gradient(135deg, #ffffff 0%, #f4e4ee 100%);
+    }
+
+.delete-btn {
+    border: none;
+    background: linear-gradient(135deg, #fff0f2 0%, #ffd9df 100%);
+    color: #a64657;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(166, 70, 87, 0.16);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+    .delete-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 30px rgba(166, 70, 87, 0.22);
+        background: linear-gradient(135deg, #ffe7eb 0%, #ffc9d1 100%);
+    }
+
+    .delete-btn.delete-mode {
+        background: linear-gradient(135deg, #ff5f77 0%, #e64561 100%);
+        color: #ffffff;
+        box-shadow: 0 10px 24px rgba(230, 69, 97, 0.26);
+    }
+
+#galleryView {
+    position: relative;
+}
+
 @media (max-width: 768px) {
     .topbar {
         height: 64px;
@@ -514,103 +649,16 @@ body {
         right: 18px;
         font-size: 36px;
     }
-}
 
-/* iPhone風格鎖屏 */
-.lock-screen {
-    position: fixed;
-    inset: 0;
-    background-image: url('/images/lock-bg.jpg');
-    background-size: contain; /* 改這行 */
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: #ffffff; /* 補白邊 */
-
-    z-index: 99999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: transform 0.6s ease, opacity 0.6s ease;
-}
-    .lock-screen.hide {
-        transform: translateY(-100%);
-        opacity: 0;
-        pointer-events: none;
+    .upload-panel {
+        gap: 10px;
+        flex-wrap: wrap;
+        width: calc(100% - 24px);
     }
 
-.lock-content {
-    text-align: center;
-}
-
-.lock-title {
-    font-size: 64px;
-    font-weight: 800;
-    color: #7b4b63;
-    text-shadow: 0 4px 12px rgba(0,0,0,0.25);
-}
-
-.lock-hint {
-    font-size: 28px;
-    font-weight: 700;
-    color: #6a5563;
-    margin-top: 40px; /* 往下移 */
-    text-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    animation: lockHintMove 1.6s infinite;
-}
-
-@keyframes lockHintMove {
-    0% {
-        transform: translateY(0);
-        opacity: 0.5;
+    .upload-btn,
+    .delete-btn {
+        font-size: 15px;
+        padding: 12px 20px;
     }
-
-    50% {
-        transform: translateY(-10px);
-        opacity: 1;
-    }
-
-    100% {
-        transform: translateY(0);
-        opacity: 0.5;
-    }
-}
-
-.logout-form {
-    margin: 0;
-}
-
-.upload-panel {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 20;
-    display: flex;
-    justify-content: center;
-    width: auto;
-    margin: 0;
-    pointer-events: auto;
-}
-
-.upload-btn {
-    border: none;
-    background: linear-gradient(135deg, #ffffff 0%, #f8edf4 100%);
-    color: #6b5260;
-    font-size: 18px;
-    font-weight: 700;
-    padding: 14px 28px;
-    border-radius: 999px;
-    cursor: pointer;
-    box-shadow: 0 10px 24px rgba(123, 75, 99, 0.14);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-    .upload-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 30px rgba(123, 75, 99, 0.18);
-        background: linear-gradient(135deg, #ffffff 0%, #f4e4ee 100%);
-     }
-
-#galleryView {
-    position: relative;
 }

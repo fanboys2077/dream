@@ -125,6 +125,56 @@ namespace dream.Pages
             });
         }
 
+        public IActionResult OnPostDelete([FromBody] DeleteRequest request)
+        {
+            var isLoggedIn = HttpContext.Session.GetString(LoginSessionKey) == "true";
+            if (!isLoggedIn)
+            {
+                Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return new JsonResult(new
+                {
+                    success = false,
+                    message = "未登入，無法刪除"
+                });
+            }
+
+            if (request == null || request.Images == null || request.Images.Count == 0)
+            {
+                return new JsonResult(new
+                {
+                    success = false,
+                    message = "沒有選取要刪除的圖片"
+                });
+            }
+
+            var galleryPath = Path.Combine(_env.WebRootPath, "images", "gallery");
+            var deletedImages = new List<string>();
+
+            foreach (var imageUrl in request.Images)
+            {
+                if (string.IsNullOrWhiteSpace(imageUrl))
+                    continue;
+
+                var fileName = Path.GetFileName(imageUrl);
+                if (string.IsNullOrWhiteSpace(fileName))
+                    continue;
+
+                var filePath = Path.Combine(galleryPath, fileName);
+
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                    deletedImages.Add(imageUrl);
+                }
+            }
+
+            return new JsonResult(new
+            {
+                success = true,
+                deletedImages = deletedImages
+            });
+        }
+
         private void LoadImages()
         {
             var galleryPath = Path.Combine(_env.WebRootPath, "images", "gallery");
@@ -144,6 +194,11 @@ namespace dream.Pages
         {
             public string Username { get; set; } = "";
             public string Password { get; set; } = "";
+        }
+
+        public class DeleteRequest
+        {
+            public List<string> Images { get; set; } = new();
         }
     }
 }

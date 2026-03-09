@@ -40,6 +40,7 @@
     <div id="galleryView">
         <div id="uploadPanel" class="upload-panel @(Model.IsLoggedIn ? "" : "hidden")">
             <button type="button" class="upload-btn" id="uploadBtn">新增圖片到照片牆</button>
+            <button type="button" class="delete-btn" id="deleteBtn">刪除牆上照片</button>
             <input type="file" id="uploadInput" accept="image/*" multiple hidden />
         </div>
 
@@ -103,7 +104,7 @@
 </div>
 
 <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
-    <span class="lightbox-close" onclick="closeLightbox()">×</span>
+    <span class="lightbox-close" onclick="closeLightbox(event)">×</span>
     <img id="lightboxImage" class="lightbox-content" src="" alt="大圖預覽" />
 </div>
 
@@ -116,12 +117,20 @@
     const loginForm = document.getElementById("loginForm");
     const uploadPanel = document.getElementById("uploadPanel");
     const uploadBtn = document.getElementById("uploadBtn");
+    const deleteBtn = document.getElementById("deleteBtn");
     const uploadInput = document.getElementById("uploadInput");
     const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
     let row1Images = @Html.Raw(JsonSerializer.Serialize(row1));
     let row2Images = @Html.Raw(JsonSerializer.Serialize(row2));
     let row3Images = @Html.Raw(JsonSerializer.Serialize(row3));
+
+    let deleteMode = false;
+    let selectedImages = new Set();
+
+    function getAllCurrentImages() {
+        return [...row1Images, ...row2Images, ...row3Images];
+    }
 
     function renderTrack(trackId, images) {
         const track = document.getElementById(trackId);
@@ -131,16 +140,29 @@
 
         if (!images || images.length === 0) return;
 
-        [...images, ...images].forEach(img => {
+        [...images, ...images].forEach((img, index) => {
             const card = document.createElement("div");
             card.className = "photo-card";
+
+            if (selectedImages.has(img)) {
+                card.classList.add("selected-for-delete");
+            }
 
             const image = document.createElement("img");
             image.src = img;
             image.alt = "photo";
             image.className = "preview-img";
-            image.onclick = function () {
-                openLightbox(img);
+            image.dataset.imageUrl = img;
+            image.dataset.duplicateIndex = index;
+
+            image.onclick = function (event) {
+                event.stopPropagation();
+
+                if (deleteMode) {
+                    toggleSelectImage(img);
+                } else {
+                    openLightbox(img);
+                }
             };
 
             card.appendChild(image);
@@ -161,7 +183,110 @@
         renderAllTracks();
     }
 
+    function toggleSelectImage(imageUrl) {
+        if (selectedImages.has(imageUrl)) {
+            selectedImages.delete(imageUrl);
+        } else {
+            selectedImages.add(imageUrl);
+        }
+
+        renderAllTracks();
+    }
+
+    function enterDeleteMode() {
+        deleteMode = true;
+        selectedImages.clear();
+
+        if (deleteBtn) {
+            deleteBtn.textContent = "確認刪除";
+            deleteBtn.classList.add("delete-mode");
+        }
+
+        const lightbox = document.getElementById("lightbox");
+        lightbox.classList.remove("show");
+        document.body.style.overflow = "";
+
+        renderAllTracks();
+    }
+
+    function exitDeleteMode() {
+        deleteMode = false;
+        selectedImages.clear();
+
+        if (deleteBtn) {
+            deleteBtn.textContent = "刪除牆上照片";
+            deleteBtn.classList.remove("delete-mode");
+        }
+
+        renderAllTracks();
+    }
+
+    async function confirmDeleteSelectedImages() {
+        const imagesToDelete = Array.from(selectedImages);
+
+        if (imagesToDelete.length === 0) {
+            alert("請先選取要刪除的照片");
+            return;
+        }
+
+        try {
+            const response = await fetch("?handler=Delete", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "RequestVerificationToken": token
+                },
+                body: JSON.stringify({
+                    images: imagesToDelete
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                alert(data.message || "刪除失敗");
+                return;
+            }
+
+            const deletedSet = new Set(data.deletedImages || imagesToDelete);
+
+            row1Images = row1Images.filter(img => !deletedSet.has(img));
+            row2Images = row2Images.filter(img => !deletedSet.has(img));
+            row3Images = row3Images.filter(img => !deletedSet.has(img));
+
+            exitDeleteMode();
+            refreshGalleryEmptyState();
+
+            alert("已刪除選取的照片");
+        } catch (error) {
+            alert("刪除失敗，請稍後再試");
+            console.error(error);
+        }
+    }
+
+    function refreshGalleryEmptyState() {
+        const allImages = getAllCurrentImages();
+        const photoWallSection = document.querySelector(".photo-wall-section");
+        const heroSection = document.querySelector(".hero-section");
+
+        if (allImages.length > 0) {
+            renderAllTracks();
+            return;
+        }
+
+        if (heroSection) {
+            heroSection.className = "hero-section empty-mode";
+            heroSection.innerHTML = `
+                <div class="center-box">
+                    <p class="empty-text">暫無媒體內容</p>
+                </div>
+            `;
+        }
+    }
+
     function openLightbox(imageSrc) {
+        if (deleteMode) return;
+
         const lightbox = document.getElementById("lightbox");
         const lightboxImage = document.getElementById("lightboxImage");
 
@@ -281,6 +406,16 @@
         });
     }
 
+    if (deleteBtn) {
+        deleteBtn.addEventListener("click", async function () {
+            if (!deleteMode) {
+                enterDeleteMode();
+            } else {
+                await confirmDeleteSelectedImages();
+            }
+        });
+    }
+
     if (uploadInput) {
         uploadInput.addEventListener("change", async function (event) {
             const files = Array.from(event.target.files || []);
@@ -306,6 +441,13 @@
                     return;
                 }
 
+                const hadNoImagesBefore = getAllCurrentImages().length === 0;
+
+                if (hadNoImagesBefore) {
+                    location.reload();
+                    return;
+                }
+
                 data.images.forEach(imgUrl => {
                     addImageToShortestRow(imgUrl);
                 });
@@ -326,6 +468,10 @@
             if (lightbox.classList.contains("show")) {
                 lightbox.classList.remove("show");
                 document.body.style.overflow = "";
+            }
+
+            if (deleteMode) {
+                exitDeleteMode();
             }
         }
     });
