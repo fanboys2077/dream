@@ -1,0 +1,332 @@
+﻿@page
+@model IndexModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "珂珂小皇帝";
+
+    var total = Model.Images.Count;
+    var size = (int)Math.Ceiling(total / 3.0);
+
+    var row1 = Model.Images.Take(size).ToList();
+    var row2 = Model.Images.Skip(size).Take(size).ToList();
+    var row3 = Model.Images.Skip(size * 2).ToList();
+}
+
+<div id="lockScreen" class="lock-screen">
+    <div class="lock-content">
+        <div class="lock-title">珂珂小皇帝</div>
+        <div class="lock-hint">↑ 上滑進入</div>
+    </div>
+</div>
+
+<div class="home-page">
+    @Html.AntiForgeryToken()
+
+    <header class="topbar">
+        <div class="logo">珂珂小皇帝</div>
+
+        @if (Model.IsLoggedIn)
+        {
+            <form method="post" asp-page-handler="Logout" class="logout-form">
+                <button type="submit" class="login-btn">登出</button>
+            </form>
+        }
+        else
+        {
+            <button type="button" class="login-btn" id="openLoginBtn">登入</button>
+        }
+    </header>
+
+    <div id="galleryView">
+        <div id="uploadPanel" class="upload-panel @(Model.IsLoggedIn ? "" : "hidden")">
+            <button type="button" class="upload-btn" id="uploadBtn">新增圖片到照片牆</button>
+            <input type="file" id="uploadInput" accept="image/*" multiple hidden />
+        </div>
+
+        @if (Model.HasImages)
+        {
+            <main class="hero-section gallery-mode">
+                <section class="photo-wall-section centered-wall">
+                    <div class="photo-row row-left">
+                        <div class="photo-track" id="row1Track"></div>
+                    </div>
+
+                    <div class="photo-row row-right">
+                        <div class="photo-track" id="row2Track"></div>
+                    </div>
+
+                    <div class="photo-row row-left">
+                        <div class="photo-track" id="row3Track"></div>
+                    </div>
+                </section>
+            </main>
+        }
+        else
+        {
+            <main class="hero-section empty-mode">
+                <div class="center-box">
+                    <p class="empty-text">暫無媒體內容</p>
+                </div>
+            </main>
+        }
+    </div>
+
+    <div id="loginView" class="login-view hidden">
+        <div class="login-screen">
+            <div class="login-panel">
+                <div class="moon"></div>
+
+                <form class="login-form" id="loginForm">
+                    <div class="form-center-group">
+                        <div class="input-group">
+                            <span class="input-icon">👤</span>
+                            <input type="text" id="username" placeholder="Username" />
+                        </div>
+
+                        <div class="input-group">
+                            <span class="input-icon">🔒</span>
+                            <input type="password" id="password" placeholder="Password" />
+                        </div>
+
+                        <button type="submit" class="login-submit">LOGIN</button>
+                    </div>
+
+                    <div class="bottom-info">
+                        <div class="welcome-title">恭迎陛下</div>
+                        <div class="welcome-subtitle">請輸入帳號密碼</div>
+                        <button type="button" class="back-btn" id="backToGalleryBtn">返回照片牆</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
+    <span class="lightbox-close" onclick="closeLightbox()">×</span>
+    <img id="lightboxImage" class="lightbox-content" src="" alt="大圖預覽" />
+</div>
+
+<script>
+    const lockScreen = document.getElementById("lockScreen");
+    const galleryView = document.getElementById("galleryView");
+    const loginView = document.getElementById("loginView");
+    const openLoginBtn = document.getElementById("openLoginBtn");
+    const backToGalleryBtn = document.getElementById("backToGalleryBtn");
+    const loginForm = document.getElementById("loginForm");
+    const uploadPanel = document.getElementById("uploadPanel");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const uploadInput = document.getElementById("uploadInput");
+    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+    let row1Images = @Html.Raw(JsonSerializer.Serialize(row1));
+    let row2Images = @Html.Raw(JsonSerializer.Serialize(row2));
+    let row3Images = @Html.Raw(JsonSerializer.Serialize(row3));
+
+    function renderTrack(trackId, images) {
+        const track = document.getElementById(trackId);
+        if (!track) return;
+
+        track.innerHTML = "";
+
+        if (!images || images.length === 0) return;
+
+        [...images, ...images].forEach(img => {
+            const card = document.createElement("div");
+            card.className = "photo-card";
+
+            const image = document.createElement("img");
+            image.src = img;
+            image.alt = "photo";
+            image.className = "preview-img";
+            image.onclick = function () {
+                openLightbox(img);
+            };
+
+            card.appendChild(image);
+            track.appendChild(card);
+        });
+    }
+
+    function renderAllTracks() {
+        renderTrack("row1Track", row1Images);
+        renderTrack("row2Track", row2Images);
+        renderTrack("row3Track", row3Images);
+    }
+
+    function addImageToShortestRow(imageUrl) {
+        const rows = [row1Images, row2Images, row3Images];
+        rows.sort((a, b) => a.length - b.length);
+        rows[0].push(imageUrl);
+        renderAllTracks();
+    }
+
+    function openLightbox(imageSrc) {
+        const lightbox = document.getElementById("lightbox");
+        const lightboxImage = document.getElementById("lightboxImage");
+
+        lightboxImage.src = imageSrc;
+        lightbox.classList.add("show");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeLightbox(event) {
+        const lightbox = document.getElementById("lightbox");
+
+        if (!event || event.target.id === "lightbox" || event.target.classList.contains("lightbox-close")) {
+            lightbox.classList.remove("show");
+            document.body.style.overflow = "";
+        }
+    }
+
+    function unlockScreen() {
+        if (!lockScreen || lockScreen.classList.contains("hide")) return;
+        lockScreen.classList.add("hide");
+    }
+
+    renderAllTracks();
+
+    let touchStartY = 0;
+
+    document.addEventListener("touchstart", function (e) {
+        touchStartY = e.touches[0].clientY;
+    });
+
+    document.addEventListener("touchend", function (e) {
+        const touchEndY = e.changedTouches[0].clientY;
+        if (touchStartY - touchEndY > 80) {
+            unlockScreen();
+        }
+    });
+
+    document.addEventListener("wheel", function (e) {
+        if (e.deltaY < -30) {
+            unlockScreen();
+        }
+    });
+
+    if (lockScreen) {
+        lockScreen.addEventListener("click", function () {
+            unlockScreen();
+        });
+    }
+
+    if (openLoginBtn) {
+        openLoginBtn.addEventListener("click", function () {
+            galleryView.classList.add("hidden");
+            loginView.classList.remove("hidden");
+        });
+    }
+
+    if (backToGalleryBtn) {
+        backToGalleryBtn.addEventListener("click", function () {
+            loginView.classList.add("hidden");
+            galleryView.classList.remove("hidden");
+        });
+    }
+
+    if (loginForm) {
+        loginForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value.trim();
+
+            if (!username || !password) {
+                alert("請輸入帳號與密碼");
+                return;
+            }
+
+            try {
+                const response = await fetch("?handler=Login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "RequestVerificationToken": token
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert("登入成功，歡迎陛下");
+
+                    loginView.classList.add("hidden");
+                    galleryView.classList.remove("hidden");
+                    uploadPanel.classList.remove("hidden");
+
+                    if (openLoginBtn) {
+                        openLoginBtn.textContent = "已登入";
+                        openLoginBtn.disabled = true;
+                        openLoginBtn.style.opacity = "0.65";
+                        openLoginBtn.style.cursor = "default";
+                    }
+                } else {
+                    alert(data.message || "帳號或密碼錯誤");
+                }
+            } catch (error) {
+                alert("登入失敗，請稍後再試");
+                console.error(error);
+            }
+        });
+    }
+
+    if (uploadBtn) {
+        uploadBtn.addEventListener("click", function () {
+            uploadInput.click();
+        });
+    }
+
+    if (uploadInput) {
+        uploadInput.addEventListener("change", async function (event) {
+            const files = Array.from(event.target.files || []);
+            if (files.length === 0) return;
+
+            const formData = new FormData();
+            files.forEach(file => formData.append("files", file));
+
+            try {
+                const response = await fetch("?handler=Upload", {
+                    method: "POST",
+                    headers: {
+                        "RequestVerificationToken": token
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    alert(data.message || "上傳失敗");
+                    uploadInput.value = "";
+                    return;
+                }
+
+                data.images.forEach(imgUrl => {
+                    addImageToShortestRow(imgUrl);
+                });
+
+                alert("圖片已成功加入照片牆");
+            } catch (error) {
+                alert("上傳失敗，請稍後再試");
+                console.error(error);
+            }
+
+            uploadInput.value = "";
+        });
+    }
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+            const lightbox = document.getElementById("lightbox");
+            if (lightbox.classList.contains("show")) {
+                lightbox.classList.remove("show");
+                document.body.style.overflow = "";
+            }
+        }
+    });
+</script>
