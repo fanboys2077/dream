@@ -115,8 +115,11 @@
         <div class="crop-title">選擇照片顯示區域</div>
 
         <div class="crop-body">
-            <div class="crop-preview-frame" id="cropFrame">
-                <img id="cropImage" class="crop-preview-image" src="" alt="裁切預覽" />
+            <div class="crop-editor" id="cropEditor">
+                <div class="crop-image-stage" id="cropFrame">
+                    <img id="cropImage" class="crop-preview-image" src="" alt="裁切預覽" />
+                    <div class="crop-selection-box"></div>
+                </div>
             </div>
 
             <div class="crop-controls">
@@ -125,7 +128,7 @@
                 </div>
 
                 <label class="crop-label">縮放</label>
-                <input type="range" id="zoomRange" min="1" max="3" step="0.01" value="1" />
+                <input type="range" id="zoomRange" min="1" max="4" step="0.01" value="1" />
 
                 <div class="crop-tip">
                     直接拖曳左側圖片，調整在照片牆卡片中要顯示的區域
@@ -158,6 +161,7 @@
     const cropModal = document.getElementById("cropModal");
     const cropImage = document.getElementById("cropImage");
     const cropFrame = document.getElementById("cropFrame");
+    const cropEditor = document.getElementById("cropEditor");
     const zoomRange = document.getElementById("zoomRange");
     const cropPrevBtn = document.getElementById("cropPrevBtn");
     const cropNextBtn = document.getElementById("cropNextBtn");
@@ -165,6 +169,14 @@
     const cropCancelBtn = document.getElementById("cropCancelBtn");
     const cropCurrentIndex = document.getElementById("cropCurrentIndex");
     const cropTotalCount = document.getElementById("cropTotalCount");
+
+    let cropImageNaturalWidth = 0;
+    let cropImageNaturalHeight = 0;
+    let cropBaseWidth = 0;
+    let cropBaseHeight = 0;
+    let cropMinScale = 1;
+    const selectionBoxWidth = 260;
+    const selectionBoxHeight = 160;
 
     let row1Images = @Html.Raw(JsonSerializer.Serialize(row1, jsonOptions));
     let row2Images = @Html.Raw(JsonSerializer.Serialize(row2, jsonOptions));
@@ -408,7 +420,60 @@
     }
 
     function updateCropImageTransform() {
-        cropImage.style.transform = `translate(${cropState.offsetX}px, ${cropState.offsetY}px) scale(${cropState.scale})`;
+        if (cropState.scale < cropMinScale) {
+            cropState.scale = cropMinScale;
+        }
+
+        clampCropOffsets();
+
+        const width = cropBaseWidth * cropState.scale;
+        const height = cropBaseHeight * cropState.scale;
+
+        cropImage.style.width = `${width}px`;
+        cropImage.style.height = `${height}px`;
+        cropImage.style.transform = `translate(calc(-50% + ${cropState.offsetX}px), calc(-50% + ${cropState.offsetY}px))`;
+    }
+
+    function initializeCropImageSize() {
+        if (!cropImageNaturalWidth || !cropImageNaturalHeight) return;
+
+        const stageWidth = cropFrame.clientWidth;
+        const stageHeight = cropFrame.clientHeight;
+
+        const imageRatio = cropImageNaturalWidth / cropImageNaturalHeight;
+        const stageRatio = stageWidth / stageHeight;
+
+        if (imageRatio > stageRatio) {
+            cropBaseWidth = stageWidth;
+            cropBaseHeight = stageWidth / imageRatio;
+        } else {
+            cropBaseHeight = stageHeight;
+            cropBaseWidth = stageHeight * imageRatio;
+        }
+
+        const minScaleX = selectionBoxWidth / cropBaseWidth;
+        const minScaleY = selectionBoxHeight / cropBaseHeight;
+
+        cropMinScale = Math.max(minScaleX, minScaleY, 0.1);
+
+        zoomRange.min = cropMinScale.toFixed(2);
+        if (parseFloat(zoomRange.value) < cropMinScale) {
+            zoomRange.value = cropMinScale.toFixed(2);
+        }
+    }
+
+    function clampCropOffsets() {
+        const scaledWidth = cropBaseWidth * cropState.scale;
+        const scaledHeight = cropBaseHeight * cropState.scale;
+
+        const maxOffsetX = Math.max(0, (scaledWidth - selectionBoxWidth) / 2);
+        const maxOffsetY = Math.max(0, (scaledHeight - selectionBoxHeight) / 2);
+
+        if (cropState.offsetX > maxOffsetX) cropState.offsetX = maxOffsetX;
+        if (cropState.offsetX < -maxOffsetX) cropState.offsetX = -maxOffsetX;
+
+        if (cropState.offsetY > maxOffsetY) cropState.offsetY = maxOffsetY;
+        if (cropState.offsetY < -maxOffsetY) cropState.offsetY = -maxOffsetY;
     }
 
     function saveCurrentCropState() {
@@ -426,14 +491,22 @@
         cropCurrentIndex.textContent = (index + 1).toString();
         cropTotalCount.textContent = pendingUploadLayouts.length.toString();
 
-        cropState.scale = item.scale ?? 1;
-        cropState.offsetX = item.offsetX ?? 0;
-        cropState.offsetY = item.offsetY ?? 0;
+        cropImage.onload = function () {
+            cropImageNaturalWidth = cropImage.naturalWidth;
+            cropImageNaturalHeight = cropImage.naturalHeight;
+
+            initializeCropImageSize();
+
+            cropState.scale = Math.max(item.scale ?? cropMinScale, cropMinScale);
+            cropState.offsetX = item.offsetX ?? 0;
+            cropState.offsetY = item.offsetY ?? 0;
+
+            zoomRange.value = cropState.scale.toFixed(2);
+
+            updateCropImageTransform();
+        };
 
         cropImage.src = item.previewUrl;
-        zoomRange.value = cropState.scale;
-
-        updateCropImageTransform();
     }
 
     function openCropModal(files) {
@@ -619,7 +692,8 @@
 
     if (zoomRange) {
         zoomRange.addEventListener("input", function () {
-            cropState.scale = parseFloat(zoomRange.value);
+            cropState.scale = Math.max(parseFloat(zoomRange.value), cropMinScale);
+            zoomRange.value = cropState.scale.toFixed(2);
             updateCropImageTransform();
             saveCurrentCropState();
         });

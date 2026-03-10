@@ -435,6 +435,27 @@ body {
     flex-wrap: wrap;
 }
 
+.crop-editor {
+    width: 520px;
+    max-width: 100%;
+}
+
+.crop-image-stage {
+    width: 520px;
+    max-width: 100%;
+    height: 360px;
+    background: #f3e5ec;
+    border-radius: 18px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 2px rgba(123, 75, 99, 0.12);
+    cursor: grab;
+}
+
+    .crop-image-stage:active {
+        cursor: grabbing;
+    }
+
 .crop-preview-frame {
     width: 520px;
     max-width: 100%;
@@ -452,12 +473,26 @@ body {
     }
 
 .crop-preview-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform-origin: center center;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    max-width: none;
+    max-height: none;
     user-select: none;
     -webkit-user-drag: none;
+    pointer-events: none;
+    transform-origin: center center;
+}
+
+.crop-selection-box {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 260px;
+    height: 160px;
+    transform: translate(-50%, -50%);
+    border-radius: 18px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28), 0 0 0 3px rgba(255, 255, 255, 0.95);
     pointer-events: none;
 }
 
