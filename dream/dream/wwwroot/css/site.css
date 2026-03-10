@@ -44,7 +44,6 @@ body {
     z-index: 1;
 }
 
-/* 頂部 */
 .topbar {
     height: 72px;
     background: rgba(255, 255, 255, 0.68);
@@ -83,7 +82,6 @@ body {
         background: linear-gradient(135deg, #ffffff 0%, #f4e4ee 100%);
     }
 
-/* 主區塊 */
 .hero-section {
     flex: 1;
     display: flex;
@@ -112,31 +110,6 @@ body {
     margin: 0 0 22px 0;
 }
 
-.manage-btn {
-    border: none;
-    background: linear-gradient(135deg, #ff7eb6 0%, #f56cab 100%);
-    color: #ffffff;
-    padding: 14px 28px;
-    border-radius: 12px;
-    font-size: 18px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 10px 24px rgba(245, 108, 171, 0.28);
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-    .manage-btn:hover {
-        background: linear-gradient(135deg, #ff6daa 0%, #ee5ca0 100%);
-        box-shadow: 0 14px 30px rgba(245, 108, 171, 0.34);
-    }
-
-    .manage-btn:active {
-        transform: scale(0.98);
-    }
-
-/* 照片牆 */
 .photo-wall-section {
     width: 100%;
     overflow: hidden;
@@ -191,22 +164,31 @@ body {
         box-shadow: 0 16px 36px rgba(99, 54, 82, 0.18);
     }
 
-    .photo-card img,
-    .preview-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-    }
+.photo-viewport {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    border-radius: 18px;
+}
 
-    .photo-card.selected-for-delete {
+.preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.photo-card.selected-for-delete {
+    outline: 4px solid #ff3b57 !important;
+    box-shadow: 0 0 0 4px rgba(255, 59, 87, 0.18), 0 16px 36px rgba(99, 54, 82, 0.18);
+}
+
+    .photo-card.selected-for-delete:hover {
         outline: 4px solid #ff3b57 !important;
-        box-shadow: 0 0 0 4px rgba(255, 59, 87, 0.18), 0 16px 36px rgba(99, 54, 82, 0.18);
     }
-
-        .photo-card.selected-for-delete:hover {
-            outline: 4px solid #ff3b57 !important;
-        }
 
 .photo-row::before,
 .photo-row::after {
@@ -229,7 +211,6 @@ body {
     background: linear-gradient(to left, rgba(230, 231, 251, 0.98), rgba(230, 231, 251, 0));
 }
 
-/* 登入畫面 */
 .hidden {
     display: none !important;
 }
@@ -279,7 +260,6 @@ body {
     inset: 0;
 }
 
-/* 帳密與登入鍵置中 */
 .form-center-group {
     position: absolute;
     top: 50%;
@@ -342,7 +322,6 @@ body {
         box-shadow: 0 10px 22px rgba(20, 40, 90, 0.18);
     }
 
-/* 底部資訊 */
 .bottom-info {
     position: absolute;
     left: 50%;
@@ -385,7 +364,6 @@ body {
         box-shadow: 0 10px 22px rgba(20, 40, 90, 0.18);
     }
 
-/* 燈箱 */
 .lightbox {
     display: none;
     position: fixed;
@@ -421,6 +399,124 @@ body {
     user-select: none;
     line-height: 1;
 }
+
+.crop-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: rgba(20, 14, 18, 0.82);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.crop-panel {
+    width: min(980px, 96vw);
+    background: #fff8fb;
+    border-radius: 24px;
+    padding: 24px;
+    box-sizing: border-box;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.28);
+}
+
+.crop-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #7b4b63;
+    margin-bottom: 18px;
+}
+
+.crop-body {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.crop-preview-frame {
+    width: 520px;
+    max-width: 100%;
+    aspect-ratio: 260 / 160;
+    overflow: hidden;
+    border-radius: 18px;
+    background: #f3e5ec;
+    position: relative;
+    box-shadow: inset 0 0 0 2px rgba(123, 75, 99, 0.12);
+    cursor: grab;
+}
+
+    .crop-preview-frame:active {
+        cursor: grabbing;
+    }
+
+.crop-preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform-origin: center center;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+
+.crop-controls {
+    width: 280px;
+    flex: 1;
+    min-width: 240px;
+}
+
+.crop-file-label,
+.crop-label,
+.crop-tip {
+    display: block;
+    margin-bottom: 10px;
+    color: #6b5260;
+}
+
+.crop-label {
+    font-weight: 700;
+    margin-top: 14px;
+}
+
+.crop-controls input[type="range"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.crop-tip {
+    margin-top: 14px;
+    line-height: 1.6;
+    font-size: 14px;
+    color: #8a6f7d;
+}
+
+.crop-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.crop-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 12px 18px;
+    cursor: pointer;
+    background: #f0dbe5;
+    color: #6b5260;
+    font-weight: 700;
+}
+
+    .crop-btn.primary {
+        background: #f8bfd2;
+    }
+
+    .crop-btn.finish {
+        background: linear-gradient(135deg, #ff7eb6 0%, #f56cab 100%);
+        color: #fff;
+    }
 
 @keyframes scrollLeft {
     0% {
@@ -470,7 +566,6 @@ body {
     }
 }
 
-/* iPhone風格鎖屏 */
 .lock-screen {
     position: fixed;
     inset: 0;
@@ -660,5 +755,13 @@ body {
     .delete-btn {
         font-size: 15px;
         padding: 12px 20px;
+    }
+
+    .crop-panel {
+        padding: 18px;
+    }
+
+    .crop-title {
+        font-size: 22px;
     }
 }

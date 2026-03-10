@@ -4,12 +4,14 @@
 @{
     ViewData["Title"] = "珂珂小皇帝";
 
-    var total = Model.Images.Count;
-    var size = (int)Math.Ceiling(total / 3.0);
+    var jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
-    var row1 = Model.Images.Take(size).ToList();
-    var row2 = Model.Images.Skip(size).Take(size).ToList();
-    var row3 = Model.Images.Skip(size * 2).ToList();
+    var row1 = Model.Photos.Where(p => p.RowIndex == 0).OrderBy(p => p.Order).ToList();
+    var row2 = Model.Photos.Where(p => p.RowIndex == 1).OrderBy(p => p.Order).ToList();
+    var row3 = Model.Photos.Where(p => p.RowIndex == 2).OrderBy(p => p.Order).ToList();
 }
 
 <div id="lockScreen" class="lock-screen">
@@ -64,7 +66,7 @@
         }
         else
         {
-            <main class="hero-section empty-mode">
+            <main class="hero-section empty-mode" id="heroSection">
                 <div class="center-box">
                     <p class="empty-text">暫無媒體內容</p>
                 </div>
@@ -108,6 +110,38 @@
     <img id="lightboxImage" class="lightbox-content" src="" alt="大圖預覽" />
 </div>
 
+<div id="cropModal" class="crop-modal hidden">
+    <div class="crop-panel">
+        <div class="crop-title">選擇照片顯示區域</div>
+
+        <div class="crop-body">
+            <div class="crop-preview-frame" id="cropFrame">
+                <img id="cropImage" class="crop-preview-image" src="" alt="裁切預覽" />
+            </div>
+
+            <div class="crop-controls">
+                <div class="crop-file-label">
+                    第 <span id="cropCurrentIndex">1</span> / <span id="cropTotalCount">1</span> 張
+                </div>
+
+                <label class="crop-label">縮放</label>
+                <input type="range" id="zoomRange" min="1" max="3" step="0.01" value="1" />
+
+                <div class="crop-tip">
+                    直接拖曳左側圖片，調整在照片牆卡片中要顯示的區域
+                </div>
+
+                <div class="crop-actions">
+                    <button type="button" id="cropPrevBtn" class="crop-btn">上一張</button>
+                    <button type="button" id="cropNextBtn" class="crop-btn primary">下一張</button>
+                    <button type="button" id="cropFinishBtn" class="crop-btn finish">完成加入</button>
+                    <button type="button" id="cropCancelBtn" class="crop-btn">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     const lockScreen = document.getElementById("lockScreen");
     const galleryView = document.getElementById("galleryView");
@@ -121,66 +155,132 @@
     const uploadInput = document.getElementById("uploadInput");
     const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
-    let row1Images = @Html.Raw(JsonSerializer.Serialize(row1));
-    let row2Images = @Html.Raw(JsonSerializer.Serialize(row2));
-    let row3Images = @Html.Raw(JsonSerializer.Serialize(row3));
+    const cropModal = document.getElementById("cropModal");
+    const cropImage = document.getElementById("cropImage");
+    const cropFrame = document.getElementById("cropFrame");
+    const zoomRange = document.getElementById("zoomRange");
+    const cropPrevBtn = document.getElementById("cropPrevBtn");
+    const cropNextBtn = document.getElementById("cropNextBtn");
+    const cropFinishBtn = document.getElementById("cropFinishBtn");
+    const cropCancelBtn = document.getElementById("cropCancelBtn");
+    const cropCurrentIndex = document.getElementById("cropCurrentIndex");
+    const cropTotalCount = document.getElementById("cropTotalCount");
+
+    let row1Images = @Html.Raw(JsonSerializer.Serialize(row1, jsonOptions));
+    let row2Images = @Html.Raw(JsonSerializer.Serialize(row2, jsonOptions));
+    let row3Images = @Html.Raw(JsonSerializer.Serialize(row3, jsonOptions));
 
     let deleteMode = false;
     let selectedImages = new Set();
 
-    function getAllCurrentImages() {
+    let pendingUploadFiles = [];
+    let pendingUploadLayouts = [];
+    let currentCropIndex = 0;
+
+    let cropState = {
+        scale: 1,
+        offsetX: 0,
+        offsetY: 0,
+        dragging: false,
+        startX: 0,
+        startY: 0
+    };
+
+    function getAllCurrentPhotos() {
         return [...row1Images, ...row2Images, ...row3Images];
     }
 
-    function renderTrack(trackId, images) {
+    function splitPhotosIntoRows(photos) {
+        const sorted = [...photos].sort((a, b) => {
+            if (a.rowIndex !== b.rowIndex) return a.rowIndex - b.rowIndex;
+            return a.order - b.order;
+        });
+
+        row1Images = sorted.filter(p => p.rowIndex === 0);
+        row2Images = sorted.filter(p => p.rowIndex === 1);
+        row3Images = sorted.filter(p => p.rowIndex === 2);
+    }
+
+    function ensureGalleryStructure() {
+        let heroSection = document.querySelector(".hero-section");
+        const hasWall = document.querySelector(".photo-wall-section");
+
+        if (hasWall) return;
+
+        if (!heroSection) {
+            heroSection = document.createElement("main");
+            heroSection.className = "hero-section gallery-mode";
+            galleryView.appendChild(heroSection);
+        } else {
+            heroSection.className = "hero-section gallery-mode";
+        }
+
+        heroSection.innerHTML = `
+            <section class="photo-wall-section centered-wall">
+                <div class="photo-row row-left">
+                    <div class="photo-track" id="row1Track"></div>
+                </div>
+                <div class="photo-row row-right">
+                    <div class="photo-track" id="row2Track"></div>
+                </div>
+                <div class="photo-row row-left">
+                    <div class="photo-track" id="row3Track"></div>
+                </div>
+            </section>
+        `;
+    }
+
+    function renderTrack(trackId, photos) {
         const track = document.getElementById(trackId);
         if (!track) return;
 
         track.innerHTML = "";
 
-        if (!images || images.length === 0) return;
+        if (!photos || photos.length === 0) return;
 
-        [...images, ...images].forEach((img, index) => {
+        [...photos, ...photos].forEach((photo, index) => {
             const card = document.createElement("div");
             card.className = "photo-card";
 
-            if (selectedImages.has(img)) {
+            if (selectedImages.has(photo.url)) {
                 card.classList.add("selected-for-delete");
             }
 
+            const viewport = document.createElement("div");
+            viewport.className = "photo-viewport";
+
             const image = document.createElement("img");
-            image.src = img;
+            image.src = photo.url;
             image.alt = "photo";
             image.className = "preview-img";
-            image.dataset.imageUrl = img;
+            image.dataset.imageUrl = photo.url;
             image.dataset.duplicateIndex = index;
+            image.draggable = false;
+
+            image.style.transform = `translate(${photo.offsetX}px, ${photo.offsetY}px) scale(${photo.scale})`;
+            image.style.transformOrigin = "center center";
 
             image.onclick = function (event) {
                 event.stopPropagation();
 
                 if (deleteMode) {
-                    toggleSelectImage(img);
+                    toggleSelectImage(photo.url);
                 } else {
-                    openLightbox(img);
+                    openLightbox(photo.url);
                 }
             };
 
-            card.appendChild(image);
+            viewport.appendChild(image);
+            card.appendChild(viewport);
             track.appendChild(card);
         });
     }
 
     function renderAllTracks() {
+        ensureGalleryStructure();
         renderTrack("row1Track", row1Images);
         renderTrack("row2Track", row2Images);
         renderTrack("row3Track", row3Images);
-    }
-
-    function addImageToShortestRow(imageUrl) {
-        const rows = [row1Images, row2Images, row3Images];
-        rows.sort((a, b) => a.length - b.length);
-        rows[0].push(imageUrl);
-        renderAllTracks();
     }
 
     function toggleSelectImage(imageUrl) {
@@ -225,7 +325,8 @@
         const imagesToDelete = Array.from(selectedImages);
 
         if (imagesToDelete.length === 0) {
-            alert("請先選取要刪除的照片");
+            exitDeleteMode();
+            alert("本次刪除了 0 張照片");
             return;
         }
 
@@ -248,16 +349,11 @@
                 return;
             }
 
-            const deletedSet = new Set(data.deletedImages || imagesToDelete);
-
-            row1Images = row1Images.filter(img => !deletedSet.has(img));
-            row2Images = row2Images.filter(img => !deletedSet.has(img));
-            row3Images = row3Images.filter(img => !deletedSet.has(img));
-
+            splitPhotosIntoRows(data.photos || []);
             exitDeleteMode();
             refreshGalleryEmptyState();
 
-            alert("已刪除選取的照片");
+            alert(`本次刪除了 ${(data.deletedImages || []).length} 張照片`);
         } catch (error) {
             alert("刪除失敗，請稍後再試");
             console.error(error);
@@ -265,23 +361,25 @@
     }
 
     function refreshGalleryEmptyState() {
-        const allImages = getAllCurrentImages();
-        const photoWallSection = document.querySelector(".photo-wall-section");
-        const heroSection = document.querySelector(".hero-section");
+        const allPhotos = getAllCurrentPhotos();
+        let heroSection = document.querySelector(".hero-section");
 
-        if (allImages.length > 0) {
+        if (allPhotos.length > 0) {
             renderAllTracks();
             return;
         }
 
-        if (heroSection) {
-            heroSection.className = "hero-section empty-mode";
-            heroSection.innerHTML = `
-                <div class="center-box">
-                    <p class="empty-text">暫無媒體內容</p>
-                </div>
-            `;
+        if (!heroSection) {
+            heroSection = document.createElement("main");
+            galleryView.appendChild(heroSection);
         }
+
+        heroSection.className = "hero-section empty-mode";
+        heroSection.innerHTML = `
+            <div class="center-box">
+                <p class="empty-text">暫無媒體內容</p>
+            </div>
+        `;
     }
 
     function openLightbox(imageSrc) {
@@ -309,7 +407,72 @@
         lockScreen.classList.add("hide");
     }
 
+    function updateCropImageTransform() {
+        cropImage.style.transform = `translate(${cropState.offsetX}px, ${cropState.offsetY}px) scale(${cropState.scale})`;
+    }
+
+    function saveCurrentCropState() {
+        if (!pendingUploadLayouts[currentCropIndex]) return;
+
+        pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
+        pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
+        pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
+    }
+
+    function loadCropState(index) {
+        const item = pendingUploadLayouts[index];
+        if (!item) return;
+
+        cropCurrentIndex.textContent = (index + 1).toString();
+        cropTotalCount.textContent = pendingUploadLayouts.length.toString();
+
+        cropState.scale = item.scale ?? 1;
+        cropState.offsetX = item.offsetX ?? 0;
+        cropState.offsetY = item.offsetY ?? 0;
+
+        cropImage.src = item.previewUrl;
+        zoomRange.value = cropState.scale;
+
+        updateCropImageTransform();
+    }
+
+    function openCropModal(files) {
+        pendingUploadFiles = files;
+        pendingUploadLayouts = files.map(() => ({
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            previewUrl: ""
+        }));
+
+        pendingUploadLayouts.forEach((item, index) => {
+            item.previewUrl = URL.createObjectURL(files[index]);
+        });
+
+        currentCropIndex = 0;
+        cropModal.classList.remove("hidden");
+        document.body.style.overflow = "hidden";
+        loadCropState(currentCropIndex);
+    }
+
+    function closeCropModal() {
+        pendingUploadLayouts.forEach(item => {
+            if (item.previewUrl) {
+                URL.revokeObjectURL(item.previewUrl);
+            }
+        });
+
+        pendingUploadFiles = [];
+        pendingUploadLayouts = [];
+        currentCropIndex = 0;
+
+        cropModal.classList.add("hidden");
+        document.body.style.overflow = "";
+        uploadInput.value = "";
+    }
+
     renderAllTracks();
+    refreshGalleryEmptyState();
 
     let touchStartY = 0;
 
@@ -417,12 +580,93 @@
     }
 
     if (uploadInput) {
-        uploadInput.addEventListener("change", async function (event) {
+        uploadInput.addEventListener("change", function (event) {
             const files = Array.from(event.target.files || []);
             if (files.length === 0) return;
 
+            openCropModal(files);
+        });
+    }
+
+    if (cropFrame) {
+        cropFrame.addEventListener("mousedown", function (e) {
+            cropState.dragging = true;
+            cropState.startX = e.clientX;
+            cropState.startY = e.clientY;
+        });
+    }
+
+    document.addEventListener("mousemove", function (e) {
+        if (!cropState.dragging) return;
+
+        const dx = e.clientX - cropState.startX;
+        const dy = e.clientY - cropState.startY;
+
+        cropState.offsetX += dx;
+        cropState.offsetY += dy;
+
+        cropState.startX = e.clientX;
+        cropState.startY = e.clientY;
+
+        updateCropImageTransform();
+    });
+
+    document.addEventListener("mouseup", function () {
+        if (!cropState.dragging) return;
+        cropState.dragging = false;
+        saveCurrentCropState();
+    });
+
+    if (zoomRange) {
+        zoomRange.addEventListener("input", function () {
+            cropState.scale = parseFloat(zoomRange.value);
+            updateCropImageTransform();
+            saveCurrentCropState();
+        });
+    }
+
+    if (cropPrevBtn) {
+        cropPrevBtn.addEventListener("click", function () {
+            saveCurrentCropState();
+
+            if (currentCropIndex > 0) {
+                currentCropIndex--;
+                loadCropState(currentCropIndex);
+            }
+        });
+    }
+
+    if (cropNextBtn) {
+        cropNextBtn.addEventListener("click", function () {
+            saveCurrentCropState();
+
+            if (currentCropIndex < pendingUploadFiles.length - 1) {
+                currentCropIndex++;
+                loadCropState(currentCropIndex);
+            }
+        });
+    }
+
+    if (cropCancelBtn) {
+        cropCancelBtn.addEventListener("click", function () {
+            closeCropModal();
+        });
+    }
+
+    if (cropFinishBtn) {
+        cropFinishBtn.addEventListener("click", async function () {
+            saveCurrentCropState();
+
             const formData = new FormData();
-            files.forEach(file => formData.append("files", file));
+            pendingUploadFiles.forEach(file => formData.append("files", file));
+
+            formData.append("layoutJson", JSON.stringify(
+                pendingUploadLayouts.map(item => ({
+                    scale: item.scale,
+                    offsetX: item.offsetX,
+                    offsetY: item.offsetY
+                }))
+            ));
 
             try {
                 const response = await fetch("?handler=Upload", {
@@ -437,33 +681,27 @@
 
                 if (!response.ok || !data.success) {
                     alert(data.message || "上傳失敗");
-                    uploadInput.value = "";
                     return;
                 }
 
-                const hadNoImagesBefore = getAllCurrentImages().length === 0;
-
-                if (hadNoImagesBefore) {
-                    location.reload();
-                    return;
-                }
-
-                data.images.forEach(imgUrl => {
-                    addImageToShortestRow(imgUrl);
-                });
-
+                splitPhotosIntoRows(data.photos || []);
+                closeCropModal();
+                refreshGalleryEmptyState();
                 alert("圖片已成功加入照片牆");
             } catch (error) {
                 alert("上傳失敗，請稍後再試");
                 console.error(error);
             }
-
-            uploadInput.value = "";
         });
     }
 
     document.addEventListener("keydown", function (event) {
         if (event.key === "Escape") {
+            if (!cropModal.classList.contains("hidden")) {
+                closeCropModal();
+                return;
+            }
+
             const lightbox = document.getElementById("lightbox");
             if (lightbox.classList.contains("show")) {
                 lightbox.classList.remove("show");
