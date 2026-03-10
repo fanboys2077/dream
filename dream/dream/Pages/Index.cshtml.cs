@@ -137,6 +137,8 @@ namespace dream.Pages
                 return new JsonResult(new { success = false, message = "未登入，無法刪除" });
             }
 
+            LoadPhotos();
+
             if (request == null || request.Images == null || request.Images.Count == 0)
             {
                 return new JsonResult(new
@@ -147,8 +149,6 @@ namespace dream.Pages
                     photos = Photos
                 });
             }
-
-            LoadPhotos();
 
             var deletedImages = new List<string>();
 

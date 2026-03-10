@@ -156,6 +156,7 @@ body {
     box-shadow: 0 10px 25px rgba(99, 54, 82, 0.12);
     cursor: pointer;
     transition: transform 0.25s ease, box-shadow 0.25s ease, outline 0.25s ease;
+    position: relative;
 }
 
     .photo-card:hover {
@@ -165,10 +166,15 @@ body {
     }
 
     .photo-card img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        max-width: none;
+        max-height: none;
         display: block;
+        user-select: none;
+        -webkit-user-drag: none;
+        transform-origin: center center;
     }
 
     .photo-card.selected-for-delete {

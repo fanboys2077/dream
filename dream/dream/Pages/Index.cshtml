@@ -17,7 +17,7 @@
 <div id="lockScreen" class="lock-screen">
     <div class="lock-content">
         <div class="lock-title">珂珂小皇帝</div>
-        <div class="lock-hint">↑ 上滑進入</div>
+        <div class="lock-hint">↑ 上滑进入</div>
     </div>
 </div>
 
@@ -41,8 +41,8 @@
 
     <div id="galleryView">
         <div id="uploadPanel" class="upload-panel @(Model.IsLoggedIn ? "" : "hidden")">
-            <button type="button" class="upload-btn" id="uploadBtn">新增圖片到照片牆</button>
-            <button type="button" class="delete-btn" id="deleteBtn">刪除牆上照片</button>
+            <button type="button" class="upload-btn" id="uploadBtn">新增图片到照片墙</button>
+            <button type="button" class="delete-btn" id="deleteBtn">删除墙上照片</button>
             <input type="file" id="uploadInput" accept="image/*" multiple hidden />
         </div>
 
@@ -68,7 +68,7 @@
         {
             <main class="hero-section empty-mode" id="heroSection">
                 <div class="center-box">
-                    <p class="empty-text">暫無媒體內容</p>
+                    <p class="empty-text">暂无媒体内容</p>
                 </div>
             </main>
         }
@@ -96,8 +96,8 @@
 
                     <div class="bottom-info">
                         <div class="welcome-title">恭迎陛下</div>
-                        <div class="welcome-subtitle">請輸入帳號密碼</div>
-                        <button type="button" class="back-btn" id="backToGalleryBtn">返回照片牆</button>
+                        <div class="welcome-subtitle">请输入帐号密码</div>
+                        <button type="button" class="back-btn" id="backToGalleryBtn">返回照片墙</button>
                     </div>
                 </form>
             </div>
@@ -107,17 +107,17 @@
 
 <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
     <span class="lightbox-close" onclick="closeLightbox(event)">×</span>
-    <img id="lightboxImage" class="lightbox-content" src="" alt="大圖預覽" />
+    <img id="lightboxImage" class="lightbox-content" src="" alt="大图预览" />
 </div>
 
 <div id="cropModal" class="crop-modal hidden">
     <div class="crop-panel">
-        <div class="crop-title">選擇照片顯示區域</div>
+        <div class="crop-title">选择照片显示区域</div>
 
         <div class="crop-body">
             <div class="crop-editor" id="cropEditor">
                 <div class="crop-image-stage" id="cropFrame">
-                    <img id="cropImage" class="crop-preview-image" src="" alt="裁切預覽" />
+                    <img id="cropImage" class="crop-preview-image" src="" alt="裁切预览" />
                     <div class="crop-selection-box"></div>
                 </div>
             </div>
@@ -131,7 +131,7 @@
                 <input type="range" id="zoomRange" min="1" max="4" step="0.01" value="1" />
 
                 <div class="crop-tip">
-                    直接拖曳左側圖片，調整在照片牆卡片中要顯示的區域
+                    直接拖曳左侧图片，调整在照片墙卡片中要显示的区域
                 </div>
 
                 <div class="crop-actions">
@@ -168,11 +168,6 @@
     const cropCancelBtn = document.getElementById("cropCancelBtn");
     const cropCurrentIndex = document.getElementById("cropCurrentIndex");
     const cropTotalCount = document.getElementById("cropTotalCount");
-
-    const cropCanvas = document.createElement("canvas");
-    cropCanvas.width = 260;
-    cropCanvas.height = 160;
-    const cropCtx = cropCanvas.getContext("2d");
 
     let cropImageNaturalWidth = 0;
     let cropImageNaturalHeight = 0;
@@ -246,7 +241,7 @@
         `;
     }
 
-    function renderTrack(trackId, photos) {
+        function renderTrack(trackId, photos) {
         const track = document.getElementById(trackId);
         if (!track) return;
 
@@ -268,6 +263,38 @@
             image.draggable = false;
             image.dataset.imageUrl = photo.url;
             image.dataset.duplicateIndex = index;
+
+            image.onload = function () {
+                const naturalWidth = image.naturalWidth || 1;
+                const naturalHeight = image.naturalHeight || 1;
+
+                const cardWidth = photo.renderWidth || 260;
+                const cardHeight = photo.renderHeight || 160;
+
+                const imageRatio = naturalWidth / naturalHeight;
+                const cardRatio = cardWidth / cardHeight;
+
+                let baseWidth = 0;
+                let baseHeight = 0;
+
+                if (imageRatio > cardRatio) {
+                    baseHeight = cardHeight;
+                    baseWidth = cardHeight * imageRatio;
+                } else {
+                    baseWidth = cardWidth;
+                    baseHeight = cardWidth / imageRatio;
+                }
+
+                const finalScale = photo.scale && photo.scale > 0 ? photo.scale : 1;
+                const finalWidth = baseWidth * finalScale;
+                const finalHeight = baseHeight * finalScale;
+                const offsetX = photo.offsetX || 0;
+                const offsetY = photo.offsetY || 0;
+
+                image.style.width = `${finalWidth}px`;
+                image.style.height = `${finalHeight}px`;
+                image.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+            };
 
             image.onclick = function (event) {
                 event.stopPropagation();
@@ -306,7 +333,7 @@
         selectedImages.clear();
 
         if (deleteBtn) {
-            deleteBtn.textContent = "確認刪除";
+            deleteBtn.textContent = "确认删除";
             deleteBtn.classList.add("delete-mode");
         }
 
@@ -322,7 +349,7 @@
         selectedImages.clear();
 
         if (deleteBtn) {
-            deleteBtn.textContent = "刪除牆上照片";
+            deleteBtn.textContent = "删除墙上照片";
             deleteBtn.classList.remove("delete-mode");
         }
 
@@ -334,7 +361,7 @@
 
         if (imagesToDelete.length === 0) {
             exitDeleteMode();
-            alert("本次刪除了 0 張照片");
+            alert("本次删除了 0 张照片");
             return;
         }
 
@@ -353,7 +380,7 @@
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                alert(data.message || "刪除失敗");
+                alert(data.message || "删除失败");
                 return;
             }
 
@@ -361,9 +388,9 @@
             exitDeleteMode();
             refreshGalleryEmptyState();
 
-            alert(`本次刪除了 ${(data.deletedImages || []).length} 張照片`);
+            alert(`本次删除了 ${(data.deletedImages || []).length} 张照片`);
         } catch (error) {
-            alert("刪除失敗，請稍後再試");
+            alert("删除失败，请稍后再试");
             console.error(error);
         }
     }
@@ -385,7 +412,7 @@
         heroSection.className = "hero-section empty-mode";
         heroSection.innerHTML = `
             <div class="center-box">
-                <p class="empty-text">暫無媒體內容</p>
+                <p class="empty-text">暂无任何图片</p>
             </div>
         `;
     }
@@ -472,38 +499,12 @@
         if (cropState.offsetY < -maxOffsetY) cropState.offsetY = -maxOffsetY;
     }
 
-    function exportCurrentCropImage() {
-        const width = cropBaseWidth * cropState.scale;
-        const height = cropBaseHeight * cropState.scale;
-
-        const stageCenterX = cropFrame.clientWidth / 2;
-        const stageCenterY = cropFrame.clientHeight / 2;
-
-        const imageLeft = stageCenterX - width / 2 + cropState.offsetX;
-        const imageTop = stageCenterY - height / 2 + cropState.offsetY;
-
-        const selectionLeft = stageCenterX - selectionBoxWidth / 2;
-        const selectionTop = stageCenterY - selectionBoxHeight / 2;
-
-        const sx = (selectionLeft - imageLeft) * (cropImageNaturalWidth / width);
-        const sy = (selectionTop - imageTop) * (cropImageNaturalHeight / height);
-        const sWidth = selectionBoxWidth * (cropImageNaturalWidth / width);
-        const sHeight = selectionBoxHeight * (cropImageNaturalHeight / height);
-
-        cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
-        cropCtx.drawImage(
-            cropImage,
-            sx, sy, sWidth, sHeight,
-            0, 0, cropCanvas.width, cropCanvas.height
-        );
-
-        return cropCanvas.toDataURL("image/jpeg", 0.95);
-    }
-
     function saveCurrentCropState() {
         if (!pendingUploadLayouts[currentCropIndex]) return;
 
-        pendingUploadLayouts[currentCropIndex].croppedDataUrl = exportCurrentCropImage();
+        pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
+        pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
+        pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
     }
 
     function loadCropState(index) {
@@ -537,7 +538,8 @@
             scale: 1,
             offsetX: 0,
             offsetY: 0,
-            croppedDataUrl: "",
+            renderWidth: 260,
+            renderHeight: 160,
             previewUrl: ""
         }));
 
@@ -617,7 +619,7 @@
             const password = document.getElementById("password").value.trim();
 
             if (!username || !password) {
-                alert("請輸入帳號與密碼");
+                alert("请输入帐号与密码");
                 return;
             }
 
@@ -637,7 +639,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    alert("登入成功，歡迎陛下");
+                    alert("登入成功，欢迎陛下");
 
                     loginView.classList.add("hidden");
                     galleryView.classList.remove("hidden");
@@ -650,10 +652,10 @@
                         openLoginBtn.style.cursor = "default";
                     }
                 } else {
-                    alert(data.message || "帳號或密碼錯誤");
+                    alert(data.message || "帐号或密码错误");
                 }
             } catch (error) {
-                alert("登入失敗，請稍後再試");
+                alert("登入失败，请稍后再试");
                 console.error(error);
             }
         });
@@ -773,20 +775,14 @@
             const formData = new FormData();
 
             for (let i = 0; i < pendingUploadFiles.length; i++) {
-                const file = pendingUploadFiles[i];
-                const layout = pendingUploadLayouts[i];
-
-                const blob = await (await fetch(layout.croppedDataUrl)).blob();
-                const croppedFile = new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
-
-                formData.append("files", croppedFile);
+                formData.append("files", pendingUploadFiles[i]);
             }
 
             formData.append("layoutJson", JSON.stringify(
-                pendingUploadLayouts.map(() => ({
-                    scale: 1,
-                    offsetX: 0,
-                    offsetY: 0,
+                pendingUploadLayouts.map(layout => ({
+                    scale: layout.scale,
+                    offsetX: layout.offsetX,
+                    offsetY: layout.offsetY,
                     renderWidth: 260,
                     renderHeight: 160
                 }))
@@ -804,16 +800,16 @@
                 const data = await response.json();
 
                 if (!response.ok || !data.success) {
-                    alert(data.message || "上傳失敗");
+                    alert(data.message || "上传失败");
                     return;
                 }
 
                 splitPhotosIntoRows(data.photos || []);
                 closeCropModal();
                 refreshGalleryEmptyState();
-                alert("圖片已成功加入照片牆");
+                alert("图片已成功加入照片墙");
             } catch (error) {
-                alert("上傳失敗，請稍後再試");
+                alert("上传失败，请稍后再试");
                 console.error(error);
             }
         });
