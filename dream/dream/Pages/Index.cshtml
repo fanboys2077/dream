@@ -68,7 +68,7 @@
         {
             <main class="hero-section empty-mode" id="heroSection">
                 <div class="center-box">
-                    <p class="empty-text">暂无媒体内容</p>
+                    <p class="empty-text">目前没有任何照片</p>
                 </div>
             </main>
         }
@@ -124,10 +124,10 @@
 
             <div class="crop-controls">
                 <div class="crop-file-label">
-                    第 <span id="cropCurrentIndex">1</span> / <span id="cropTotalCount">1</span> 張
+                    第 <span id="cropCurrentIndex">1</span> / <span id="cropTotalCount">1</span> 张
                 </div>
 
-                <label class="crop-label">縮放</label>
+                <label class="crop-label">缩放</label>
                 <input type="range" id="zoomRange" min="1" max="4" step="0.01" value="1" />
 
                 <div class="crop-tip">
@@ -135,8 +135,8 @@
                 </div>
 
                 <div class="crop-actions">
-                    <button type="button" id="cropPrevBtn" class="crop-btn">上一張</button>
-                    <button type="button" id="cropNextBtn" class="crop-btn primary">下一張</button>
+                    <button type="button" id="cropPrevBtn" class="crop-btn">上一张</button>
+                    <button type="button" id="cropNextBtn" class="crop-btn primary">下一张</button>
                     <button type="button" id="cropFinishBtn" class="crop-btn finish">完成加入</button>
                     <button type="button" id="cropCancelBtn" class="crop-btn">取消</button>
                 </div>
@@ -168,6 +168,11 @@
     const cropCancelBtn = document.getElementById("cropCancelBtn");
     const cropCurrentIndex = document.getElementById("cropCurrentIndex");
     const cropTotalCount = document.getElementById("cropTotalCount");
+
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = 260;
+    cropCanvas.height = 160;
+    const cropCtx = cropCanvas.getContext("2d");
 
     let cropImageNaturalWidth = 0;
     let cropImageNaturalHeight = 0;
@@ -241,7 +246,7 @@
         `;
     }
 
-        function renderTrack(trackId, photos) {
+    function renderTrack(trackId, photos) {
         const track = document.getElementById(trackId);
         if (!track) return;
 
@@ -257,44 +262,15 @@
                 card.classList.add("selected-for-delete");
             }
 
+            const frame = document.createElement("div");
+            frame.className = "photo-card-frame";
+
             const image = document.createElement("img");
-            image.src = photo.url;
             image.alt = "photo";
             image.draggable = false;
             image.dataset.imageUrl = photo.url;
             image.dataset.duplicateIndex = index;
-
-            image.onload = function () {
-                const naturalWidth = image.naturalWidth || 1;
-                const naturalHeight = image.naturalHeight || 1;
-
-                const cardWidth = photo.renderWidth || 260;
-                const cardHeight = photo.renderHeight || 160;
-
-                const imageRatio = naturalWidth / naturalHeight;
-                const cardRatio = cardWidth / cardHeight;
-
-                let baseWidth = 0;
-                let baseHeight = 0;
-
-                if (imageRatio > cardRatio) {
-                    baseHeight = cardHeight;
-                    baseWidth = cardHeight * imageRatio;
-                } else {
-                    baseWidth = cardWidth;
-                    baseHeight = cardWidth / imageRatio;
-                }
-
-                const finalScale = photo.scale && photo.scale > 0 ? photo.scale : 1;
-                const finalWidth = baseWidth * finalScale;
-                const finalHeight = baseHeight * finalScale;
-                const offsetX = photo.offsetX || 0;
-                const offsetY = photo.offsetY || 0;
-
-                image.style.width = `${finalWidth}px`;
-                image.style.height = `${finalHeight}px`;
-                image.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
-            };
+            image.className = "photo-card-image";
 
             image.onclick = function (event) {
                 event.stopPropagation();
@@ -306,10 +282,15 @@
                 }
             };
 
-            card.appendChild(image);
+            image.src = photo.previewUrl || photo.url;
+
+            frame.appendChild(image);
+            card.appendChild(frame);
             track.appendChild(card);
         });
     }
+
+    
 
     function renderAllTracks() {
         ensureGalleryStructure();
@@ -412,7 +393,7 @@
         heroSection.className = "hero-section empty-mode";
         heroSection.innerHTML = `
             <div class="center-box">
-                <p class="empty-text">暂无任何图片</p>
+                <p class="empty-text">目前没有任何照片</p>
             </div>
         `;
     }
@@ -499,12 +480,105 @@
         if (cropState.offsetY < -maxOffsetY) cropState.offsetY = -maxOffsetY;
     }
 
+    function exportCurrentCropImage() {
+        const width = cropBaseWidth * cropState.scale;
+        const height = cropBaseHeight * cropState.scale;
+
+        const stageCenterX = cropFrame.clientWidth / 2;
+        const stageCenterY = cropFrame.clientHeight / 2;
+
+        const imageLeft = stageCenterX - width / 2 + cropState.offsetX;
+        const imageTop = stageCenterY - height / 2 + cropState.offsetY;
+
+        const selectionLeft = stageCenterX - selectionBoxWidth / 2;
+        const selectionTop = stageCenterY - selectionBoxHeight / 2;
+
+        const sx = (selectionLeft - imageLeft) * (cropImageNaturalWidth / width);
+        const sy = (selectionTop - imageTop) * (cropImageNaturalHeight / height);
+        const sWidth = selectionBoxWidth * (cropImageNaturalWidth / width);
+        const sHeight = selectionBoxHeight * (cropImageNaturalHeight / height);
+
+        cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+        cropCtx.drawImage(
+            cropImage,
+            sx, sy, sWidth, sHeight,
+            0, 0, cropCanvas.width, cropCanvas.height
+        );
+
+        return cropCanvas.toDataURL("image/jpeg", 0.95);
+    }
+
+        function exportCropPreviewByIndex(index) {
+        const item = pendingUploadLayouts[index];
+        if (!item || !item.previewUrl) return "";
+
+        const tempImage = new Image();
+        tempImage.src = item.previewUrl;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 260;
+        canvas.height = 160;
+        const ctx = canvas.getContext("2d");
+
+        const naturalWidth = item.originalWidth;
+        const naturalHeight = item.originalHeight;
+
+        const cropX = item.cropX;
+        const cropY = item.cropY;
+        const cropWidth = item.cropWidth;
+        const cropHeight = item.cropHeight;
+
+        return new Promise((resolve) => {
+            tempImage.onload = function () {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(
+                    tempImage,
+                    cropX, cropY, cropWidth, cropHeight,
+                    0, 0, canvas.width, canvas.height
+                );
+                resolve(canvas.toDataURL("image/jpeg", 0.95));
+            };
+        });
+    }
+
     function saveCurrentCropState() {
         if (!pendingUploadLayouts[currentCropIndex]) return;
 
-        pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
-        pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
-        pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
+        const rect = getCurrentCropRect();
+        pendingUploadLayouts[currentCropIndex].cropX = rect.cropX;
+        pendingUploadLayouts[currentCropIndex].cropY = rect.cropY;
+        pendingUploadLayouts[currentCropIndex].cropWidth = rect.cropWidth;
+        pendingUploadLayouts[currentCropIndex].cropHeight = rect.cropHeight;
+        pendingUploadLayouts[currentCropIndex].originalWidth = rect.originalWidth;
+        pendingUploadLayouts[currentCropIndex].originalHeight = rect.originalHeight;
+    }
+
+    function getCurrentCropRect() {
+        const width = cropBaseWidth * cropState.scale;
+        const height = cropBaseHeight * cropState.scale;
+
+        const stageCenterX = cropFrame.clientWidth / 2;
+        const stageCenterY = cropFrame.clientHeight / 2;
+
+        const imageLeft = stageCenterX - width / 2 + cropState.offsetX;
+        const imageTop = stageCenterY - height / 2 + cropState.offsetY;
+
+        const selectionLeft = stageCenterX - selectionBoxWidth / 2;
+        const selectionTop = stageCenterY - selectionBoxHeight / 2;
+
+        const cropX = (selectionLeft - imageLeft) * (cropImageNaturalWidth / width);
+        const cropY = (selectionTop - imageTop) * (cropImageNaturalHeight / height);
+        const cropWidth = selectionBoxWidth * (cropImageNaturalWidth / width);
+        const cropHeight = selectionBoxHeight * (cropImageNaturalHeight / height);
+
+        return {
+            cropX: Math.max(0, cropX),
+            cropY: Math.max(0, cropY),
+            cropWidth: Math.min(cropWidth, cropImageNaturalWidth),
+            cropHeight: Math.min(cropHeight, cropImageNaturalHeight),
+            originalWidth: cropImageNaturalWidth,
+            originalHeight: cropImageNaturalHeight
+        };
     }
 
     function loadCropState(index) {
@@ -538,9 +612,13 @@
             scale: 1,
             offsetX: 0,
             offsetY: 0,
-            renderWidth: 260,
-            renderHeight: 160,
-            previewUrl: ""
+            previewUrl: "",
+            cropX: 0,
+            cropY: 0,
+            cropWidth: 0,
+            cropHeight: 0,
+            originalWidth: 0,
+            originalHeight: 0
         }));
 
         pendingUploadLayouts.forEach((item, index) => {
@@ -776,13 +854,26 @@
 
             for (let i = 0; i < pendingUploadFiles.length; i++) {
                 formData.append("files", pendingUploadFiles[i]);
-            }
+
+                const previewDataUrl = await exportCropPreviewByIndex(i);
+                const previewBlob = await (await fetch(previewDataUrl)).blob();
+                const previewFile = new File(
+                    [previewBlob],
+                    `preview_${i}.jpg`,
+                    { type: "image/jpeg" }
+                );
+
+            formData.append("previewFiles", previewFile);
+    }
 
             formData.append("layoutJson", JSON.stringify(
-                pendingUploadLayouts.map(layout => ({
-                    scale: layout.scale,
-                    offsetX: layout.offsetX,
-                    offsetY: layout.offsetY,
+                pendingUploadLayouts.map(item => ({
+                    cropX: item.cropX,
+                    cropY: item.cropY,
+                    cropWidth: item.cropWidth,
+                    cropHeight: item.cropHeight,
+                    originalWidth: item.originalWidth,
+                    originalHeight: item.originalHeight,
                     renderWidth: 260,
                     renderHeight: 160
                 }))
@@ -833,4 +924,5 @@
             }
         }
     });
+
 </script>
