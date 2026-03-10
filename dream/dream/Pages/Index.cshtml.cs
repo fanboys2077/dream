@@ -112,7 +112,9 @@ namespace dream.Pages
                     Url = "/images/gallery/" + newFileName,
                     Scale = layout.Scale <= 0 ? 1 : layout.Scale,
                     OffsetX = layout.OffsetX,
-                    OffsetY = layout.OffsetY
+                    OffsetY = layout.OffsetY,
+                    RenderWidth = layout.RenderWidth > 0 ? layout.RenderWidth : 260,
+                    RenderHeight = layout.RenderHeight > 0 ? layout.RenderHeight : 160
                 });
             }
 
@@ -227,7 +229,9 @@ namespace dream.Pages
                     Url = "/images/gallery/" + Path.GetFileName(f),
                     Scale = 1,
                     OffsetX = 0,
-                    OffsetY = 0
+                    OffsetY = 0,
+                    RenderWidth = 260,
+                    RenderHeight = 160
                 })
                 .ToList();
 
@@ -264,6 +268,8 @@ namespace dream.Pages
             public double Scale { get; set; } = 1;
             public double OffsetX { get; set; } = 0;
             public double OffsetY { get; set; } = 0;
+            public double RenderWidth { get; set; } = 260;
+            public double RenderHeight { get; set; } = 160;
         }
 
         public class UploadLayoutItem
@@ -271,6 +277,8 @@ namespace dream.Pages
             public double Scale { get; set; }
             public double OffsetX { get; set; }
             public double OffsetY { get; set; }
+            public double RenderWidth { get; set; }
+            public double RenderHeight { get; set; }
         }
 
         public class LoginRequest

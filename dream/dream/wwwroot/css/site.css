@@ -164,31 +164,21 @@ body {
         box-shadow: 0 16px 36px rgba(99, 54, 82, 0.18);
     }
 
-.photo-viewport {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    position: relative;
-    border-radius: 18px;
-}
-
-.preview-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    user-select: none;
-    -webkit-user-drag: none;
-}
-
-.photo-card.selected-for-delete {
-    outline: 4px solid #ff3b57 !important;
-    box-shadow: 0 0 0 4px rgba(255, 59, 87, 0.18), 0 16px 36px rgba(99, 54, 82, 0.18);
-}
-
-    .photo-card.selected-for-delete:hover {
-        outline: 4px solid #ff3b57 !important;
+    .photo-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
     }
+
+    .photo-card.selected-for-delete {
+        outline: 4px solid #ff3b57 !important;
+        box-shadow: 0 0 0 4px rgba(255, 59, 87, 0.18), 0 16px 36px rgba(99, 54, 82, 0.18);
+    }
+
+        .photo-card.selected-for-delete:hover {
+            outline: 4px solid #ff3b57 !important;
+        }
 
 .photo-row::before,
 .photo-row::after {
@@ -453,22 +443,6 @@ body {
 }
 
     .crop-image-stage:active {
-        cursor: grabbing;
-    }
-
-.crop-preview-frame {
-    width: 520px;
-    max-width: 100%;
-    aspect-ratio: 260 / 160;
-    overflow: hidden;
-    border-radius: 18px;
-    background: #f3e5ec;
-    position: relative;
-    box-shadow: inset 0 0 0 2px rgba(123, 75, 99, 0.12);
-    cursor: grab;
-}
-
-    .crop-preview-frame:active {
         cursor: grabbing;
     }
 

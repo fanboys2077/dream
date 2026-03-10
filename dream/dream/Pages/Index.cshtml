@@ -161,7 +161,6 @@
     const cropModal = document.getElementById("cropModal");
     const cropImage = document.getElementById("cropImage");
     const cropFrame = document.getElementById("cropFrame");
-    const cropEditor = document.getElementById("cropEditor");
     const zoomRange = document.getElementById("zoomRange");
     const cropPrevBtn = document.getElementById("cropPrevBtn");
     const cropNextBtn = document.getElementById("cropNextBtn");
@@ -169,6 +168,11 @@
     const cropCancelBtn = document.getElementById("cropCancelBtn");
     const cropCurrentIndex = document.getElementById("cropCurrentIndex");
     const cropTotalCount = document.getElementById("cropTotalCount");
+
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = 260;
+    cropCanvas.height = 160;
+    const cropCtx = cropCanvas.getContext("2d");
 
     let cropImageNaturalWidth = 0;
     let cropImageNaturalHeight = 0;
@@ -258,19 +262,12 @@
                 card.classList.add("selected-for-delete");
             }
 
-            const viewport = document.createElement("div");
-            viewport.className = "photo-viewport";
-
             const image = document.createElement("img");
             image.src = photo.url;
             image.alt = "photo";
-            image.className = "preview-img";
+            image.draggable = false;
             image.dataset.imageUrl = photo.url;
             image.dataset.duplicateIndex = index;
-            image.draggable = false;
-
-            image.style.transform = `translate(${photo.offsetX}px, ${photo.offsetY}px) scale(${photo.scale})`;
-            image.style.transformOrigin = "center center";
 
             image.onclick = function (event) {
                 event.stopPropagation();
@@ -282,8 +279,7 @@
                 }
             };
 
-            viewport.appendChild(image);
-            card.appendChild(viewport);
+            card.appendChild(image);
             track.appendChild(card);
         });
     }
@@ -476,12 +472,38 @@
         if (cropState.offsetY < -maxOffsetY) cropState.offsetY = -maxOffsetY;
     }
 
+    function exportCurrentCropImage() {
+        const width = cropBaseWidth * cropState.scale;
+        const height = cropBaseHeight * cropState.scale;
+
+        const stageCenterX = cropFrame.clientWidth / 2;
+        const stageCenterY = cropFrame.clientHeight / 2;
+
+        const imageLeft = stageCenterX - width / 2 + cropState.offsetX;
+        const imageTop = stageCenterY - height / 2 + cropState.offsetY;
+
+        const selectionLeft = stageCenterX - selectionBoxWidth / 2;
+        const selectionTop = stageCenterY - selectionBoxHeight / 2;
+
+        const sx = (selectionLeft - imageLeft) * (cropImageNaturalWidth / width);
+        const sy = (selectionTop - imageTop) * (cropImageNaturalHeight / height);
+        const sWidth = selectionBoxWidth * (cropImageNaturalWidth / width);
+        const sHeight = selectionBoxHeight * (cropImageNaturalHeight / height);
+
+        cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+        cropCtx.drawImage(
+            cropImage,
+            sx, sy, sWidth, sHeight,
+            0, 0, cropCanvas.width, cropCanvas.height
+        );
+
+        return cropCanvas.toDataURL("image/jpeg", 0.95);
+    }
+
     function saveCurrentCropState() {
         if (!pendingUploadLayouts[currentCropIndex]) return;
 
-        pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
-        pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
-        pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
+        pendingUploadLayouts[currentCropIndex].croppedDataUrl = exportCurrentCropImage();
     }
 
     function loadCropState(index) {
@@ -515,6 +537,7 @@
             scale: 1,
             offsetX: 0,
             offsetY: 0,
+            croppedDataUrl: "",
             previewUrl: ""
         }));
 
@@ -687,6 +710,9 @@
     document.addEventListener("mouseup", function () {
         if (!cropState.dragging) return;
         cropState.dragging = false;
+        pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
+        pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
+        pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
         saveCurrentCropState();
     });
 
@@ -695,12 +721,19 @@
             cropState.scale = Math.max(parseFloat(zoomRange.value), cropMinScale);
             zoomRange.value = cropState.scale.toFixed(2);
             updateCropImageTransform();
+
+            pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
+            pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
+            pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
             saveCurrentCropState();
         });
     }
 
     if (cropPrevBtn) {
         cropPrevBtn.addEventListener("click", function () {
+            pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
+            pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
+            pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
             saveCurrentCropState();
 
             if (currentCropIndex > 0) {
@@ -712,6 +745,9 @@
 
     if (cropNextBtn) {
         cropNextBtn.addEventListener("click", function () {
+            pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
+            pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
+            pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
             saveCurrentCropState();
 
             if (currentCropIndex < pendingUploadFiles.length - 1) {
@@ -729,16 +765,30 @@
 
     if (cropFinishBtn) {
         cropFinishBtn.addEventListener("click", async function () {
+            pendingUploadLayouts[currentCropIndex].scale = cropState.scale;
+            pendingUploadLayouts[currentCropIndex].offsetX = cropState.offsetX;
+            pendingUploadLayouts[currentCropIndex].offsetY = cropState.offsetY;
             saveCurrentCropState();
 
             const formData = new FormData();
-            pendingUploadFiles.forEach(file => formData.append("files", file));
+
+            for (let i = 0; i < pendingUploadFiles.length; i++) {
+                const file = pendingUploadFiles[i];
+                const layout = pendingUploadLayouts[i];
+
+                const blob = await (await fetch(layout.croppedDataUrl)).blob();
+                const croppedFile = new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+
+                formData.append("files", croppedFile);
+            }
 
             formData.append("layoutJson", JSON.stringify(
-                pendingUploadLayouts.map(item => ({
-                    scale: item.scale,
-                    offsetX: item.offsetX,
-                    offsetY: item.offsetY
+                pendingUploadLayouts.map(() => ({
+                    scale: 1,
+                    offsetX: 0,
+                    offsetY: 0,
+                    renderWidth: 260,
+                    renderHeight: 160
                 }))
             ));
 
