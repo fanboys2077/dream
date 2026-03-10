@@ -26,8 +26,9 @@ namespace dream.Pages
 
         public void OnGet()
         {
+            HttpContext.Session.Remove(LoginSessionKey);
             LoadPhotos();
-            IsLoggedIn = HttpContext.Session.GetString(LoginSessionKey) == "true";
+            IsLoggedIn = false;
         }
 
         public IActionResult OnPostLogin([FromBody] LoginRequest request)
